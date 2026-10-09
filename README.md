@@ -52,6 +52,7 @@ Mỗi buổi học có "Nhắc trước" (15 phút … 1 ngày, mặc định 15
 ## Kiến trúc nhanh
 
 - Vite + React + TypeScript + Tailwind v4, `vite-plugin-pwa` (service worker tự cập nhật).
+- Giao diện dùng **Ionic React** (giao diện iOS trên iPhone, Material trên Android): chuyển trang trượt kiểu native, chọn ngày/giờ bằng `IonDatetime`, select/xác nhận bằng action sheet và alert. Router là `@ionic/react-router` + react-router v6; các tab ở `/tabs/lich`, `/tabs/thang`, `/tabs/gia-dinh`. Tailwind chỉ dùng utilities (không preflight) để không đè style của Ionic.
 - TanStack Query, cache được lưu vào `localStorage` để xem lịch khi offline (sửa thì cần mạng).
 - Supabase: Auth email/mật khẩu, Postgres + RLS. Mọi quy tắc nghiệp vụ quan trọng nằm trong migration:
   - mỗi tài khoản thuộc đúng 1 gia đình (`unique (user_id)`), vai trò `owner` / `editor` / `viewer`;

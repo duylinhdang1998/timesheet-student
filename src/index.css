@@ -1,146 +1,192 @@
-@import 'tailwindcss';
+/* Tailwind without its preflight (it resets Ionic's components). Ionic's global styles sit in a layer
+   below ours, so our base rules and Tailwind utilities win over them. */
+@layer theme, ionic, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+@import '@ionic/react/css/core.css';
+@import '@ionic/react/css/normalize.css' layer(ionic);
+@import '@ionic/react/css/structure.css' layer(ionic);
+@import '@ionic/react/css/typography.css' layer(ionic);
+@import '@ionic/react/css/palettes/dark.system.css';
+
+/* The bits of Tailwind's preflight our own markup relies on, kept off Ionic's elements */
+@layer base {
+  :where(div, span, section, header, main, p, a, button, label, form, img, h1, h2, h3, h4, ul, li),
+  :where(div, span, button)::before,
+  :where(div, span, button)::after {
+    box-sizing: border-box;
+    border: 0 solid;
+  }
+  :where(h1, h2, h3, h4, p) {
+    margin: 0;
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  :where(button) {
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+  }
+}
 
 :root {
-  color-scheme: light dark;
-  /* 14px base: Tailwind sizes and spacing are rem, so the whole UI scales down together */
-  font-size: 87.5%;
   -webkit-tap-highlight-color: transparent;
+
+  /* teal */
+  --ion-color-primary: #1f7a72;
+  --ion-color-primary-rgb: 31, 122, 114;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #1b6b64;
+  --ion-color-primary-tint: #358780;
+
+  --ion-color-danger: #d9534a;
+  --ion-color-danger-rgb: 217, 83, 74;
+  --ion-color-danger-contrast: #ffffff;
+  --ion-color-danger-contrast-rgb: 255, 255, 255;
+  --ion-color-danger-shade: #bf4941;
+  --ion-color-danger-tint: #dd645c;
+
+  /* Capacitor's SystemBars sets --safe-area-inset-* where env() is unreliable (Android edge-to-edge) */
+  --ion-safe-area-top: var(--safe-area-inset-top, env(safe-area-inset-top));
+  --ion-safe-area-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom));
+  --ion-safe-area-left: var(--safe-area-inset-left, env(safe-area-inset-left));
+  --ion-safe-area-right: var(--safe-area-inset-right, env(safe-area-inset-right));
+
+  /* warm cream page, white cards, peach notes */
+  --app-page-bg: #faf7f2;
+  --app-card-bg: #ffffff;
+  --app-border: #efe9e1;
+  --app-text: #1d2a2f;
+  --app-muted: #7b8388;
+  --app-track: #eeeae4;
+  --app-note-bg: #fcecdf;
+  --app-note-fg: #b65a2e;
+  --app-note-text: #3b3330;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ion-color-primary: #2fa596;
+    --ion-color-primary-rgb: 47, 165, 150;
+    --ion-color-primary-shade: #299184;
+    --ion-color-primary-tint: #44aea1;
+    --app-page-bg: #0f1112;
+    --app-card-bg: #1c1f21;
+    --app-border: #2a2e31;
+    --app-text: #eef1f2;
+    --app-muted: #959ca1;
+    --app-track: #262a2d;
+    --app-note-bg: #3a2a20;
+    --app-note-fg: #f1a678;
+    --app-note-text: #f2e6df;
+  }
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--app-text);
+}
+ion-content {
+  --background: var(--app-page-bg);
+  --color: var(--app-text);
+}
+ion-header ion-toolbar {
+  --background: var(--app-page-bg);
+  --border-width: 0 !important;
+}
+ion-header::after {
+  display: none;
+}
+ion-tab-bar {
+  --background: var(--app-card-bg);
+  --border: 1px solid var(--app-border);
+  --color: var(--app-muted);
+  --color-selected: var(--ion-color-primary);
+}
+ion-tab-button {
+  font-weight: 500;
+}
+ion-content.grouped {
+  --background: var(--app-page-bg);
+}
+/* inset lists on the cream background are white cards */
+ion-list.list-inset {
+  --ion-item-background: var(--app-card-bg);
+  border: 1px solid var(--app-border);
+}
+ion-content ion-list.list-inset {
+  margin-inline: 1rem;
+}
+/* one step below the iOS default (17px); inputs stay at 16px so Safari does not zoom on focus */
+ion-item,
+ion-input,
+ion-textarea,
+ion-select,
+ion-back-button,
+ion-button {
+  font-size: 16px;
+}
+ion-button[size='small'] {
+  font-size: 14px;
 }
 
-@utility pb-safe {
-  padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom));
+ion-button {
+  --border-radius: 0.875rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
-@utility pt-safe {
-  padding-top: var(--safe-area-inset-top, env(safe-area-inset-top));
+/* Date/time picker opened from DateField/TimeField: a compact card instead of a full-screen modal */
+ion-modal.picker-modal {
+  --width: fit-content;
+  --min-width: 18rem;
+  --height: fit-content;
+  --border-radius: 1rem;
+  --box-shadow: 0 1.5rem 3rem rgb(0 0 0 / 0.3);
 }
 
-/* below 16px iOS would zoom on focus; index.html sets maximum-scale=1 to prevent that */
-@utility input {
-  @apply w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base outline-none
-    focus:border-sky-500 focus:ring-2 focus:ring-sky-200
-    disabled:opacity-60
-    dark:border-slate-700 dark:bg-slate-900 dark:focus:ring-sky-900;
+/* A segment that spans its row (Ionic caps segment buttons inside toolbars) */
+ion-segment.full {
+  width: 100%;
 }
-@utility label {
-  @apply mb-1 block text-sm font-medium text-slate-600 dark:text-slate-300;
+ion-segment.full ion-segment-button {
+  max-width: none;
+  flex: 1 1 0;
 }
-@utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-medium transition
-    active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+
+/* Bottom sheet as tall as its content (Ionic's "auto height sheet" recipe) */
+ion-modal.form-sheet {
+  --height: 94%;
+  --border-radius: 1.25rem;
 }
-@utility btn-primary {
-  @apply btn bg-sky-500 text-white hover:bg-sky-600;
+ion-modal.form-sheet ion-footer {
+  background: var(--app-page-bg);
 }
-@utility btn-secondary {
-  @apply btn bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700;
+
+ion-modal.auto-sheet {
+  --height: auto;
+  --border-radius: 1.25rem;
 }
-@utility btn-danger {
-  @apply btn bg-rose-500 text-white hover:bg-rose-600;
+ion-modal.auto-sheet .ion-page {
+  position: relative;
+  display: block;
+  contain: content;
+  max-height: 90vh;
+  overflow: auto;
 }
+
 @utility card {
-  @apply rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800;
+  @apply rounded-2xl;
+  background: var(--app-card-bg);
+  border: 1px solid var(--app-border);
 }
-
-/* Sheet (components/Sheet.tsx): slides up on phones, scales in as a dialog on wider screens.
-   Enter animations only fill backwards so the drag-to-dismiss transform can take over afterwards. */
-@theme {
-  --animate-sheet-in: sheet-in 340ms cubic-bezier(0.32, 0.72, 0, 1) backwards;
-  --animate-sheet-out: sheet-out 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
-  --animate-dialog-in: dialog-in 200ms ease-out backwards;
-  --animate-dialog-out: dialog-out 150ms ease-in forwards;
-  --animate-fade-in: fade-in 250ms ease-out backwards;
-  --animate-fade-out: fade-out 220ms ease-in forwards;
-
-  @keyframes sheet-in {
-    from {
-      transform: translateY(100%);
-    }
-  }
-  @keyframes sheet-out {
-    to {
-      transform: translateY(100%);
-    }
-  }
-  @keyframes dialog-in {
-    from {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-  }
-  @keyframes dialog-out {
-    to {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-  }
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-  }
-  @keyframes fade-out {
-    to {
-      opacity: 0;
-    }
-  }
+@utility text-muted {
+  color: var(--app-muted);
 }
-
-/* Page transitions (state/pageTransition.ts): the next page slides over the current one like a native
-   navigation stack; the page underneath shifts a little and dims. Tab switches just crossfade. */
-html[data-nav='forward']::view-transition-old(root),
-html[data-nav='forward']::view-transition-new(root),
-html[data-nav='back']::view-transition-old(root),
-html[data-nav='back']::view-transition-new(root) {
-  animation-duration: 400ms;
-  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
-  animation-fill-mode: both;
-  mix-blend-mode: normal;
-}
-html[data-nav='forward']::view-transition-old(root) {
-  animation-name: page-under-out;
-}
-html[data-nav='forward']::view-transition-new(root) {
-  animation-name: page-over-in;
-  box-shadow: 0 0 24px rgb(0 0 0 / 0.15);
-}
-html[data-nav='back']::view-transition-old(root) {
-  z-index: 1;
-  animation-name: page-over-out;
-  box-shadow: 0 0 24px rgb(0 0 0 / 0.15);
-}
-html[data-nav='back']::view-transition-new(root) {
-  animation-name: page-under-in;
-}
-html[data-nav='tab']::view-transition-old(root),
-html[data-nav='tab']::view-transition-new(root) {
-  animation-duration: 150ms;
-}
-
-@keyframes page-over-in {
-  from {
-    transform: translateX(100%);
-  }
-}
-@keyframes page-over-out {
-  to {
-    transform: translateX(100%);
-  }
-}
-@keyframes page-under-out {
-  to {
-    transform: translateX(-30%);
-    filter: brightness(0.9);
-  }
-}
-@keyframes page-under-in {
-  from {
-    transform: translateX(-30%);
-    filter: brightness(0.9);
-  }
+@utility note-card {
+  @apply rounded-2xl;
+  background: var(--app-note-bg);
+  color: var(--app-note-text);
 }

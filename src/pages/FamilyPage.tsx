@@ -1,13 +1,32 @@
-import { useState } from 'react'
-import { AppLink } from '../components/AppLink'
+import { useRef, useState } from 'react'
+import {
+  IonButton,
+  IonContent,
+  IonIcon,
+  IonInput,
+  IonModal,
+  IonPage,
+  IonRippleEffect,
+  useIonActionSheet,
+  useIonRouter,
+} from '@ionic/react'
+import {
+  add,
+  chevronForward,
+  homeOutline,
+  lockClosedOutline,
+  personAddOutline,
+  settingsOutline,
+  shareOutline,
+  trashOutline,
+} from 'ionicons/icons'
 import { useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNowStrict } from 'date-fns'
 import { Share } from '@capacitor/share'
 import { vi } from 'date-fns/locale'
-import { TopBar } from '../components/TopBar'
-import { ChildAvatar } from '../components/ChildAvatar'
-import { ConfirmSheet, Sheet } from '../components/Sheet'
-import { Icon } from '../components/Icon'
+import { LargeHeader, PullToRefresh, RowsCard, SectionTitle } from '../components/Page'
+import { ChildAvatar, tint } from '../components/ChildAvatar'
+import { classAndSchool } from '../components/SessionSheet'
 import { ErrorBox, Loading } from '../components/States'
 import { useChildren, useInvites, useMembers } from '../data/queries'
 import { supabase } from '../lib/supabase'
@@ -19,84 +38,119 @@ import { useUserId } from '../state/auth'
 import { useHousehold } from '../state/household'
 import { useToast } from '../state/toast'
 
-export function FamilyPage() {
-  const { householdName, displayName, isOwner, canEdit, role } = useHousehold()
-  const [editingNames, setEditingNames] = useState(false)
+const PRIMARY = 'var(--ion-color-primary)'
 
-  return (
-    <>
-      <TopBar title="Gia đình" />
-      <main className="mx-auto max-w-md space-y-6 px-4 py-4">
-        <section className="card flex items-center gap-3 p-4">
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-lg font-semibold">{householdName}</div>
-            <div className="text-sm text-slate-500">
-              Bạn là <b>{displayName}</b> · {ROLE_LABEL[role]}
-            </div>
-          </div>
-          <button className="btn-secondary px-3 py-1.5 text-sm" onClick={() => setEditingNames(true)}>
-            Sửa tên
-          </button>
-        </section>
-
-        <ChildrenSection canEdit={canEdit} />
-        <MembersSection />
-        {isOwner && <InvitesSection />}
-
-        <section className="space-y-2 pb-4">
-          <button className="btn-secondary w-full" onClick={() => supabase.auth.signOut()}>
-            Đăng xuất
-          </button>
-          <p className="text-center text-xs text-slate-400">Quên mật khẩu? Hãy nhờ quản trị viên đặt lại.</p>
-        </section>
-      </main>
-      {editingNames && <NamesSheet onClose={() => setEditingNames(false)} />}
-    </>
-  )
+/** "Bạn là chủ nhà" / "Bạn được sửa" / "Bạn chỉ xem" */
+const ROLE_SENTENCE: Record<Role, string> = {
+  owner: 'Bạn là chủ nhà',
+  editor: 'Bạn được sửa lịch',
+  viewer: 'Bạn chỉ xem lịch',
 }
 
-function SectionTitle({ title, action }: { title: string; action?: React.ReactNode }) {
+export function FamilyPage() {
+  const { householdName, isOwner, canEdit, role } = useHousehold()
+  const [presentActionSheet] = useIonActionSheet()
+  const [editingNames, setEditingNames] = useState(false)
+
+  const openSettings = () =>
+    presentActionSheet({
+      buttons: [
+        { text: 'Sửa tên', handler: () => setEditingNames(true) },
+        { text: 'Đăng xuất', role: 'destructive', handler: () => void supabase.auth.signOut() },
+        { text: 'Huỷ', role: 'cancel' },
+      ],
+    })
+
   return (
-    <div className="mb-2 flex items-center justify-between">
-      <h2 className="font-semibold text-slate-500 dark:text-slate-400">{title}</h2>
-      {action}
-    </div>
+    <IonPage>
+      <LargeHeader
+        title="Gia đình"
+        end={
+          <IonButton fill="clear" color="medium" onClick={openSettings} aria-label="Cài đặt">
+            <IonIcon slot="icon-only" icon={settingsOutline} />
+          </IonButton>
+        }
+      />
+      <IonContent>
+        <PullToRefresh />
+        <div className="mx-auto max-w-md space-y-4 px-4 pt-1 pb-10">
+          <button
+            type="button"
+            onClick={() => setEditingNames(true)}
+            className="card ion-activatable relative flex w-full items-center gap-3.5 overflow-hidden p-4 text-left"
+          >
+            <IonRippleEffect />
+            <span
+              className="flex size-13 shrink-0 items-center justify-center rounded-full text-[22px]"
+              style={{ backgroundColor: tint('#1f7a72', 16), color: PRIMARY }}
+            >
+              <IonIcon icon={homeOutline} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[18px] font-bold">{householdName}</span>
+              <span className="text-muted block text-[14px]">{ROLE_SENTENCE[role]}</span>
+            </span>
+            <IonIcon icon={chevronForward} className="text-muted shrink-0 text-lg opacity-70" />
+          </button>
+
+          <ChildrenSection canEdit={canEdit} />
+          <MembersSection />
+          {isOwner && <InvitesSection />}
+
+          <p className="text-muted px-4 pt-2 text-center text-xs">Quên mật khẩu? Hãy nhờ quản trị viên đặt lại.</p>
+        </div>
+      </IonContent>
+
+      {editingNames && <EditNamesSheet onClose={() => setEditingNames(false)} />}
+    </IonPage>
   )
 }
 
 function ChildrenSection({ canEdit }: { canEdit: boolean }) {
+  const router = useIonRouter()
   const { data: children, isPending, error } = useChildren()
   return (
-    <section>
+    <section className="space-y-2.5">
       <SectionTitle
         title="Các con"
-        action={
+        end={
           canEdit && (
-            <AppLink to="/con/moi" className="text-sm font-medium text-sky-600">
-              + Thêm bé
-            </AppLink>
+            <IonButton fill="clear" size="small" routerLink="/con/moi" routerDirection="forward" className="-mr-2">
+              <IonIcon slot="start" icon={add} />
+              Thêm bé
+            </IonButton>
           )
         }
       />
       {error && <ErrorBox error={error} />}
       {isPending ? (
         <Loading />
+      ) : children?.length === 0 ? (
+        <p className="card text-muted px-4 py-4 text-[14px]">Chưa có bé nào.</p>
       ) : (
-        <div className="card divide-y divide-slate-100 dark:divide-slate-800">
-          {children?.length === 0 && <p className="p-4 text-sm text-slate-500">Chưa có bé nào.</p>}
-          {children?.map((c) => (
-            <AppLink key={c.id} to={`/con/${c.id}`} className="flex items-center gap-3 p-3">
-              <ChildAvatar child={c} size="size-10" />
-              <div className="min-w-0 flex-1">
-                <div className="font-medium">{c.name}</div>
-                {(c.school || c.class_name) && (
-                  <div className="truncate text-sm text-slate-500">{[c.class_name, c.school].filter(Boolean).join(' · ')}</div>
-                )}
-              </div>
-              <Icon name="next" className="size-4 text-slate-400" />
-            </AppLink>
-          ))}
-        </div>
+        <RowsCard>
+          {children?.map((c) => {
+            const line = classAndSchool(c)
+            return (
+              <button
+                type="button"
+                key={c.id}
+                onClick={() => router.push(`/con/${c.id}`, 'forward')}
+                className="ion-activatable relative flex w-full items-center gap-3 overflow-hidden px-4 py-3 text-left"
+              >
+                <IonRippleEffect />
+                <ChildAvatar child={c} size="size-11 text-[17px]" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[16px] font-semibold">{c.name}</span>
+                  <span className={`block truncate text-[13px] ${line ? 'text-muted' : 'text-(--ion-color-primary)'}`}>
+                    {line || 'Thêm lớp và trường'}
+                  </span>
+                </span>
+                <IonIcon icon={chevronForward} className="text-muted shrink-0 text-lg opacity-70" />
+              </button>
+            )
+          })}
+        </RowsCard>
       )}
     </section>
   )
@@ -108,58 +162,75 @@ function MembersSection() {
   const { data: members, isPending, error } = useMembers()
   const queryClient = useQueryClient()
   const toast = useToast()
-  const [removing, setRemoving] = useState<Member | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [presentActionSheet] = useIonActionSheet()
 
-  async function remove() {
-    setBusy(true)
+  async function remove(member: Member) {
     const { error } = await supabase
       .from('household_members')
       .delete()
-      .eq('household_id', removing!.household_id)
-      .eq('user_id', removing!.user_id)
-    setBusy(false)
+      .eq('household_id', member.household_id)
+      .eq('user_id', member.user_id)
     if (error) return toast(errorMessage(error), 'error')
-    setRemoving(null)
     queryClient.invalidateQueries({ queryKey: ['members'] })
   }
 
+  const confirmRemove = (member: Member) =>
+    presentActionSheet({
+      header: `Xoá ${member.display_name} khỏi gia đình?`,
+      subHeader: 'Người này sẽ không xem được lịch nữa. Muốn vào lại cần mã mời mới.',
+      buttons: [
+        { text: 'Xoá khỏi gia đình', role: 'destructive', handler: () => void remove(member) },
+        { text: 'Huỷ', role: 'cancel' },
+      ],
+    })
+
   return (
-    <section>
+    <section className="space-y-2.5">
       <SectionTitle title="Thành viên" />
       {error && <ErrorBox error={error} />}
       {isPending ? (
         <Loading />
       ) : (
-        <div className="card divide-y divide-slate-100 dark:divide-slate-800">
-          {members?.map((m) => (
-            <div key={m.user_id} className="flex items-center gap-3 p-3">
-              <div className="min-w-0 flex-1">
-                <div className="font-medium">
-                  {m.display_name}
-                  {m.user_id === userId && <span className="font-normal text-slate-400"> (bạn)</span>}
-                </div>
-                <div className="text-sm text-slate-500">{ROLE_LABEL[m.role]}</div>
+        <RowsCard>
+          {members?.map((m) => {
+            const me = m.user_id === userId
+            const removable = isOwner && !me
+            const body = (
+              <>
+                <span
+                  className="flex size-11 shrink-0 items-center justify-center rounded-full text-[17px] font-bold"
+                  style={{ backgroundColor: tint('#1f7a72', 14), color: PRIMARY }}
+                >
+                  {m.display_name.trim().charAt(0).toUpperCase()}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[16px] font-semibold">
+                    {m.display_name}
+                    {me && <span className="text-muted font-normal"> (Bạn)</span>}
+                  </span>
+                  <span className="text-muted block text-[13px]">{ROLE_LABEL[m.role]}</span>
+                </span>
+              </>
+            )
+            const cls = 'relative flex w-full items-center gap-3 px-4 py-3 text-left'
+            return removable ? (
+              <button
+                type="button"
+                key={m.user_id}
+                onClick={() => confirmRemove(m)}
+                className={`${cls} ion-activatable overflow-hidden`}
+              >
+                <IonRippleEffect />
+                {body}
+                <IonIcon icon={chevronForward} className="text-muted shrink-0 text-lg opacity-70" />
+              </button>
+            ) : (
+              <div key={m.user_id} className={cls}>
+                {body}
               </div>
-              {isOwner && m.user_id !== userId && (
-                <button className="rounded-full p-2 text-rose-500" onClick={() => setRemoving(m)} aria-label={`Xoá ${m.display_name}`}>
-                  <Icon name="trash" />
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-      {removing && (
-        <ConfirmSheet
-          title="Xoá thành viên?"
-          message={`${removing.display_name} sẽ không xem được lịch của gia đình nữa. Muốn vào lại cần mã mời mới.`}
-          confirmLabel="Xoá khỏi gia đình"
-          danger
-          busy={busy}
-          onConfirm={remove}
-          onClose={() => setRemoving(null)}
-        />
+            )
+          })}
+        </RowsCard>
       )}
     </section>
   )
@@ -169,14 +240,16 @@ function InvitesSection() {
   const { data: invites, isPending, error } = useInvites(true)
   const queryClient = useQueryClient()
   const toast = useToast()
+  const [presentActionSheet] = useIonActionSheet()
   const [busy, setBusy] = useState(false)
 
   async function create(role: Role) {
     setBusy(true)
-    const { error } = await supabase.rpc('create_invite', { p_role: role })
+    const { data, error } = await supabase.rpc('create_invite', { p_role: role })
     setBusy(false)
     if (error) return toast(errorMessage(error), 'error')
-    queryClient.invalidateQueries({ queryKey: ['invites'] })
+    await queryClient.invalidateQueries({ queryKey: ['invites'] })
+    await share(data as Invite)
   }
 
   async function revoke(invite: Invite) {
@@ -200,58 +273,84 @@ function InvitesSection() {
     }
   }
 
+  const invite = () =>
+    presentActionSheet({
+      header: 'Người được mời có quyền',
+      buttons: [
+        { text: 'Được sửa lịch', handler: () => void create('editor') },
+        { text: 'Chỉ xem lịch', handler: () => void create('viewer') },
+        { text: 'Huỷ', role: 'cancel' },
+      ],
+    })
+
   return (
-    <section>
-      <SectionTitle title="Mời người thân" />
-      <p className="mb-3 text-sm text-slate-500">
-        Mã mời dùng được <b>1 lần</b>, hết hạn sau <b>7 ngày</b>. Người nhận đăng ký tài khoản rồi nhập mã.
-      </p>
-      <div className="mb-3 grid grid-cols-2 gap-2">
-        <button className="btn-primary text-sm" disabled={busy} onClick={() => create('editor')}>
-          Mã mời: được sửa
-        </button>
-        <button className="btn-secondary text-sm" disabled={busy} onClick={() => create('viewer')}>
-          Mã mời: chỉ xem
-        </button>
+    <>
+      <div className="note-card space-y-3 px-4 py-4">
+        <div className="flex items-start gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/60 text-[22px] text-(--app-note-fg) dark:bg-black/20">
+            <IonIcon icon={personAddOutline} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-[16px] font-semibold">Cùng chăm sóc lịch học</h3>
+            <p className="text-[14px] opacity-80">Mời ông bà, bố mẹ cùng xem và cập nhật lịch của các con.</p>
+          </div>
+        </div>
+        <IonButton expand="block" className="h-11" disabled={busy} onClick={invite}>
+          {busy ? 'Đang tạo mã…' : 'Mời thành viên'}
+        </IonButton>
+        <p className="flex items-center justify-center gap-1.5 text-xs opacity-75">
+          <IonIcon icon={lockClosedOutline} />
+          Bạn chọn quyền truy cập khi mời · mã dùng 1 lần, hết hạn sau 7 ngày
+        </p>
       </div>
+
       {error && <ErrorBox error={error} />}
       {isPending ? (
         <Loading />
       ) : (
-        <div className="space-y-2">
-          {invites?.map((inv) => (
-            <div key={inv.id} className="card flex items-center gap-3 p-3">
-              <div className="min-w-0 flex-1">
-                <div className="font-mono text-2xl font-bold tracking-[0.25em]">{inv.code}</div>
-                <div className="text-sm text-slate-500">
-                  {ROLE_LABEL[inv.role]} · hết hạn sau {formatDistanceToNowStrict(new Date(inv.expires_at), { locale: vi })}
+        invites &&
+        invites.length > 0 && (
+          <section className="space-y-2.5">
+            <SectionTitle title="Mã mời đang chờ" />
+            <RowsCard>
+              {invites.map((inv) => (
+                <div key={inv.id} className="flex items-center gap-2 py-2.5 pr-2 pl-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-mono text-lg font-bold tracking-[0.2em]">{inv.code}</div>
+                    <div className="text-muted text-[13px]">
+                      {ROLE_LABEL[inv.role]} · hết hạn sau{' '}
+                      {formatDistanceToNowStrict(new Date(inv.expires_at), { locale: vi })}
+                    </div>
+                  </div>
+                  <IonButton fill="clear" onClick={() => share(inv)} aria-label="Chia sẻ mã mời">
+                    <IonIcon slot="icon-only" icon={shareOutline} />
+                  </IonButton>
+                  <IonButton fill="clear" color="danger" onClick={() => revoke(inv)} aria-label="Huỷ mã mời">
+                    <IonIcon slot="icon-only" icon={trashOutline} />
+                  </IonButton>
                 </div>
-              </div>
-              <button className="rounded-full p-2 text-sky-600" onClick={() => share(inv)} aria-label="Chia sẻ mã mời">
-                <Icon name="share" />
-              </button>
-              <button className="rounded-full p-2 text-rose-500" onClick={() => revoke(inv)} aria-label="Huỷ mã mời">
-                <Icon name="trash" />
-              </button>
-            </div>
-          ))}
-        </div>
+              ))}
+            </RowsCard>
+          </section>
+        )
       )}
-    </section>
+    </>
   )
 }
 
-function NamesSheet({ onClose }: { onClose: () => void }) {
+/** Sheet to rename yourself (and the family, for the owner). */
+function EditNamesSheet({ onClose }: { onClose: () => void }) {
+  const modal = useRef<HTMLIonModalElement>(null)
   const userId = useUserId()
   const { householdId, householdName, displayName, isOwner } = useHousehold()
   const queryClient = useQueryClient()
-  const toast = useToast()
   const [name, setName] = useState(displayName)
   const [family, setFamily] = useState(householdName)
+  const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  async function save(close: () => void) {
-    if (!name.trim() || !family.trim()) return
+  async function save() {
+    if (!name.trim() || !family.trim()) return setError('Tên không được để trống')
     setBusy(true)
     try {
       const { error } = await supabase
@@ -266,33 +365,61 @@ function NamesSheet({ onClose }: { onClose: () => void }) {
       }
       await queryClient.invalidateQueries({ queryKey: ['membership'] })
       await queryClient.invalidateQueries({ queryKey: ['members'] })
-      close()
+      await modal.current?.dismiss()
     } catch (err) {
-      toast(errorMessage(err), 'error')
+      setError(errorMessage(err))
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Sheet title="Sửa tên" onClose={onClose}>
-      {(close) => (
-      <div className="space-y-4">
-        <label className="block">
-          <span className="label">Tên của bạn</span>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        {isOwner && (
-          <label className="block">
-            <span className="label">Tên gia đình</span>
-            <input className="input" value={family} onChange={(e) => setFamily(e.target.value)} />
-          </label>
-        )}
-        <button className="btn-primary w-full" disabled={busy} onClick={() => save(close)}>
-          {busy ? 'Đang lưu…' : 'Lưu'}
-        </button>
+    <IonModal
+      ref={modal}
+      isOpen
+      className="auto-sheet"
+      breakpoints={[0, 1]}
+      initialBreakpoint={1}
+      onDidDismiss={onClose}
+    >
+      <div className="space-y-4 px-5 pt-6 pb-[calc(var(--ion-safe-area-bottom)+1rem)]">
+        <h2 className="text-lg font-semibold">Sửa tên</h2>
+        <div className="card divide-y divide-(--app-border) overflow-hidden">
+          <div className="px-4 py-1">
+            <IonInput
+              label="Tên của bạn"
+              labelPlacement="stacked"
+              value={name}
+              onIonInput={(e) => {
+                setError(null)
+                setName(e.detail.value ?? '')
+              }}
+            />
+          </div>
+          {isOwner && (
+            <div className="px-4 py-1">
+              <IonInput
+                label="Tên gia đình"
+                labelPlacement="stacked"
+                value={family}
+                onIonInput={(e) => {
+                  setError(null)
+                  setFamily(e.detail.value ?? '')
+                }}
+              />
+            </div>
+          )}
+        </div>
+        {error && <ErrorBox error={error} />}
+        <div className="space-y-1">
+          <IonButton expand="block" className="h-12" disabled={busy} onClick={save}>
+            {busy ? 'Đang lưu…' : 'Lưu'}
+          </IonButton>
+          <IonButton expand="block" fill="clear" color="medium" onClick={() => modal.current?.dismiss()}>
+            Huỷ
+          </IonButton>
+        </div>
       </div>
-      )}
-    </Sheet>
+    </IonModal>
   )
 }

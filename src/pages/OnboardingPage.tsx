@@ -1,4 +1,15 @@
 import { useState, type FormEvent } from 'react'
+import {
+  IonButton,
+  IonContent,
+  IonInput,
+  IonItem,
+  IonLabel,
+  IonList,
+  IonPage,
+  IonRadio,
+  IonRadioGroup,
+} from '@ionic/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { errorMessage } from '../lib/errors'
@@ -33,56 +44,90 @@ export function OnboardingPage() {
     }
   }
 
-  const option = (active: boolean) =>
-    `card w-full p-4 text-left ${active ? 'ring-2 ring-sky-500 dark:ring-sky-500' : ''}`
-
   return (
-    <div className="pt-safe mx-auto min-h-dvh max-w-sm px-6 py-10">
-      <h1 className="mb-1 text-2xl font-bold">Chào mừng!</h1>
-      <p className="mb-6 text-slate-500">Bắt đầu bằng cách tạo gia đình, hoặc vào gia đình đã có bằng mã mời.</p>
+    <IonPage>
+      <IonContent className="grouped">
+        <div className="mx-auto max-w-sm py-10">
+          <div className="px-5">
+            <h1 className="mb-1 text-[22px] font-bold">Chào mừng!</h1>
+            <p className="text-muted">Bắt đầu bằng cách tạo gia đình, hoặc vào gia đình đã có bằng mã mời.</p>
+          </div>
 
-      <div className="mb-6 space-y-3">
-        <button className={option(mode === 'create')} onClick={() => setMode('create')}>
-          <div className="font-semibold">Tạo gia đình mới</div>
-          <div className="text-sm text-slate-500">Bạn sẽ là chủ nhà và mời bố/mẹ, ông bà sau.</div>
-        </button>
-        <button className={option(mode === 'join')} onClick={() => setMode('join')}>
-          <div className="font-semibold">Tôi có mã mời</div>
-          <div className="text-sm text-slate-500">Nhập mã 6 ký tự mà chủ nhà gửi cho bạn.</div>
-        </button>
-      </div>
+          <IonList inset>
+            <IonRadioGroup value={mode} onIonChange={(e) => setMode(e.detail.value)}>
+              <IonItem>
+                <IonRadio value="create" justify="space-between">
+                  <IonLabel className="ion-text-wrap">
+                    <h2 className="font-semibold">Tạo gia đình mới</h2>
+                    <p>Bạn sẽ là chủ nhà và mời bố/mẹ, ông bà sau.</p>
+                  </IonLabel>
+                </IonRadio>
+              </IonItem>
+              <IonItem lines="none">
+                <IonRadio value="join" justify="space-between">
+                  <IonLabel className="ion-text-wrap">
+                    <h2 className="font-semibold">Tôi có mã mời</h2>
+                    <p>Nhập mã 6 ký tự mà chủ nhà gửi cho bạn.</p>
+                  </IonLabel>
+                </IonRadio>
+              </IonItem>
+            </IonRadioGroup>
+          </IonList>
 
-      <form onSubmit={submit} className="space-y-4">
-        <label className="block">
-          <span className="label">Tên của bạn (hiển thị cho cả nhà)</span>
-          <input className="input" required placeholder="Ví dụ: Mẹ, Bố, Bà nội" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-        </label>
-        {mode === 'create' ? (
-          <label className="block">
-            <span className="label">Tên gia đình</span>
-            <input className="input" required placeholder="Ví dụ: Nhà An Bình" value={householdName} onChange={(e) => setHouseholdName(e.target.value)} />
-          </label>
-        ) : (
-          <label className="block">
-            <span className="label">Mã mời</span>
-            <input
-              className="input text-center font-mono text-2xl tracking-[0.4em] uppercase"
-              required
-              maxLength={6}
-              autoCapitalize="characters"
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-            />
-          </label>
-        )}
-        {error && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950 dark:text-rose-300">{error}</p>}
-        <button className="btn-primary w-full" disabled={busy}>
-          {busy ? 'Đang xử lý…' : mode === 'create' ? 'Tạo gia đình' : 'Vào gia đình'}
-        </button>
-      </form>
-      <button className="mt-6 w-full text-center text-sm text-slate-500" onClick={() => supabase.auth.signOut()}>
-        Đăng xuất
-      </button>
-    </div>
+          <form onSubmit={submit}>
+            <IonList inset>
+              <IonItem>
+                <IonInput
+                  label="Tên của bạn (hiển thị cho cả nhà)"
+                  labelPlacement="stacked"
+                  required
+                  placeholder="Ví dụ: Mẹ, Bố, Bà nội"
+                  value={displayName}
+                  onIonInput={(e) => setDisplayName(e.detail.value ?? '')}
+                />
+              </IonItem>
+              {mode === 'create' ? (
+                <IonItem lines="none">
+                  <IonInput
+                    label="Tên gia đình"
+                    labelPlacement="stacked"
+                    required
+                    placeholder="Ví dụ: Nhà An Bình"
+                    value={householdName}
+                    onIonInput={(e) => setHouseholdName(e.detail.value ?? '')}
+                  />
+                </IonItem>
+              ) : (
+                <IonItem lines="none">
+                  <IonInput
+                    label="Mã mời"
+                    labelPlacement="stacked"
+                    required
+                    maxlength={6}
+                    autocapitalize="characters"
+                    className="font-mono text-[22px] tracking-[0.4em] uppercase"
+                    value={code}
+                    onIonInput={(e) => setCode((e.detail.value ?? '').toUpperCase())}
+                  />
+                </IonItem>
+              )}
+            </IonList>
+            <div className="space-y-3 px-4">
+              {error && (
+                <p className="rounded-xl bg-rose-50 px-3 py-2 text-[13px] text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                  {error}
+                </p>
+              )}
+              <IonButton expand="block" type="submit" disabled={busy}>
+                {busy ? 'Đang xử lý…' : mode === 'create' ? 'Tạo gia đình' : 'Vào gia đình'}
+              </IonButton>
+              <IonButton expand="block" fill="clear" color="medium" onClick={() => supabase.auth.signOut()}>
+                Đăng xuất
+              </IonButton>
+            </div>
+          </form>
+        </div>
+      </IonContent>
+    </IonPage>
   )
 }

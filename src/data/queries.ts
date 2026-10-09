@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery, type InfiniteData } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
-import { hhmm } from '../lib/dates'
+import { addDaysISO, hhmm } from '../lib/dates'
 import type { Child, DayNote, Invite, Member, Membership, Series, Session } from '../lib/types'
 import { useHousehold } from '../state/household'
 
@@ -34,21 +34,52 @@ export function useChildren() {
   })
 }
 
+const fetchSessions = (householdId: string, from: string, to: string) =>
+  unwrap<Session[]>(
+    supabase
+      .from('sessions')
+      .select('*')
+      .eq('household_id', householdId)
+      .gte('date', from)
+      .lte('date', to)
+      .order('date')
+      .order('start_time'),
+  )
+
+const fetchDayNotes = (householdId: string, from: string, to: string) =>
+  unwrap<DayNote[]>(
+    supabase.from('day_notes').select('*').eq('household_id', householdId).gte('date', from).lte('date', to),
+  )
+
 export function useSessionsRange(from: string, to: string) {
   const { householdId } = useHousehold()
   return useQuery({
     queryKey: ['sessions', householdId, from, to],
-    queryFn: () =>
-      unwrap<Session[]>(
-        supabase
-          .from('sessions')
-          .select('*')
-          .eq('household_id', householdId)
-          .gte('date', from)
-          .lte('date', to)
-          .order('date')
-          .order('start_time'),
-      ),
+    queryFn: () => fetchSessions(householdId, from, to),
+  })
+}
+
+/**
+ * Endless list from `from` on, `pageDays` days per page: each page is fetched and cached on its own, so loading
+ * more only asks for the new days. Keys start with 'sessions' / 'day_notes', so the usual invalidations refresh them.
+ */
+export function useSessionPages(from: string, pageDays: number) {
+  const { householdId } = useHousehold()
+  return useInfiniteQuery<Session[], Error, InfiniteData<Session[], string>, unknown[], string>({
+    queryKey: ['sessions', householdId, 'pages', from, pageDays],
+    initialPageParam: from,
+    getNextPageParam: (_last, _all, lastStart) => addDaysISO(lastStart, pageDays),
+    queryFn: ({ pageParam }) => fetchSessions(householdId, pageParam, addDaysISO(pageParam, pageDays - 1)),
+  })
+}
+
+export function useDayNotePages(from: string, pageDays: number) {
+  const { householdId } = useHousehold()
+  return useInfiniteQuery<DayNote[], Error, InfiniteData<DayNote[], string>, unknown[], string>({
+    queryKey: ['day_notes', householdId, 'pages', from, pageDays],
+    initialPageParam: from,
+    getNextPageParam: (_last, _all, lastStart) => addDaysISO(lastStart, pageDays),
+    queryFn: ({ pageParam }) => fetchDayNotes(householdId, pageParam, addDaysISO(pageParam, pageDays - 1)),
   })
 }
 
@@ -72,10 +103,7 @@ export function useDayNotesRange(from: string, to: string) {
   const { householdId } = useHousehold()
   return useQuery({
     queryKey: ['day_notes', householdId, from, to],
-    queryFn: () =>
-      unwrap<DayNote[]>(
-        supabase.from('day_notes').select('*').eq('household_id', householdId).gte('date', from).lte('date', to),
-      ),
+    queryFn: () => fetchDayNotes(householdId, from, to),
   })
 }
 

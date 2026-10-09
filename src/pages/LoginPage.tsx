@@ -1,4 +1,16 @@
 import { useState, type FormEvent } from 'react'
+import {
+  IonButton,
+  IonContent,
+  IonInput,
+  IonInputPasswordToggle,
+  IonItem,
+  IonLabel,
+  IonList,
+  IonPage,
+  IonSegment,
+  IonSegmentButton,
+} from '@ionic/react'
 import { supabase } from '../lib/supabase'
 import { errorMessage } from '../lib/errors'
 
@@ -31,56 +43,70 @@ export function LoginPage() {
     }
   }
 
-  const tab = (active: boolean) =>
-    `flex-1 rounded-lg py-2 text-sm font-medium ${active ? 'bg-white shadow-sm dark:bg-slate-700' : 'text-slate-500'}`
-
   return (
-    <div className="pt-safe mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6 py-10">
-      <img src="/app-icon.png" alt="" className="mx-auto mb-4 size-20" />
-      <h1 className="mb-1 text-center text-2xl font-bold">Mẹ và lịch học</h1>
-      <p className="mb-8 text-center text-slate-500">Lịch học và ghi chú hằng ngày của các con</p>
+    <IonPage>
+      <IonContent className="grouped">
+        <div className="mx-auto flex min-h-full max-w-sm flex-col justify-center py-10">
+          <img src="/app-icon.png" alt="" className="mx-auto mb-4 size-20 rounded-[22%] shadow-md" />
+          <h1 className="mb-1 text-center text-[22px] font-bold">Mẹ và lịch học</h1>
+          <p className="mb-6 text-center text-muted">Lịch học và ghi chú hằng ngày của các con</p>
 
-      <div className="mb-5 flex rounded-xl bg-slate-200 p-1 dark:bg-slate-800">
-        <button className={tab(mode === 'signin')} onClick={() => setMode('signin')}>
-          Đăng nhập
-        </button>
-        <button className={tab(mode === 'signup')} onClick={() => setMode('signup')}>
-          Đăng ký
-        </button>
-      </div>
+          <div className="px-4">
+            <IonSegment value={mode} onIonChange={(e) => setMode(e.detail.value as 'signin' | 'signup')}>
+              <IonSegmentButton value="signin">
+                <IonLabel>Đăng nhập</IonLabel>
+              </IonSegmentButton>
+              <IonSegmentButton value="signup">
+                <IonLabel>Đăng ký</IonLabel>
+              </IonSegmentButton>
+            </IonSegment>
+          </div>
 
-      <form onSubmit={submit} className="space-y-4">
-        <label className="block">
-          <span className="label">Email</span>
-          <input
-            className="input"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </label>
-        <label className="block">
-          <span className="label">Mật khẩu</span>
-          <input
-            className="input"
-            type="password"
-            autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-            minLength={6}
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
-        {error && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950 dark:text-rose-300">{error}</p>}
-        <button className="btn-primary w-full" disabled={busy}>
-          {busy ? 'Đang xử lý…' : mode === 'signin' ? 'Đăng nhập' : 'Tạo tài khoản'}
-        </button>
-      </form>
-      {mode === 'signin' && (
-        <p className="mt-6 text-center text-sm text-slate-500">Quên mật khẩu? Hãy nhờ quản trị viên đặt lại.</p>
-      )}
-    </div>
+          <form onSubmit={submit}>
+            <IonList inset>
+              <IonItem>
+                <IonInput
+                  label="Email"
+                  labelPlacement="stacked"
+                  type="email"
+                  autocomplete="email"
+                  inputmode="email"
+                  required
+                  value={email}
+                  onIonInput={(e) => setEmail(e.detail.value ?? '')}
+                />
+              </IonItem>
+              <IonItem lines="none">
+                <IonInput
+                  label="Mật khẩu"
+                  labelPlacement="stacked"
+                  type="password"
+                  autocomplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                  minlength={6}
+                  required
+                  value={password}
+                  onIonInput={(e) => setPassword(e.detail.value ?? '')}
+                >
+                  <IonInputPasswordToggle slot="end" />
+                </IonInput>
+              </IonItem>
+            </IonList>
+            <div className="space-y-3 px-4">
+              {error && (
+                <p className="rounded-xl bg-rose-50 px-3 py-2 text-[13px] text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                  {error}
+                </p>
+              )}
+              <IonButton expand="block" type="submit" disabled={busy}>
+                {busy ? 'Đang xử lý…' : mode === 'signin' ? 'Đăng nhập' : 'Tạo tài khoản'}
+              </IonButton>
+            </div>
+          </form>
+          {mode === 'signin' && (
+            <p className="mt-6 text-center text-[13px] text-muted">Quên mật khẩu? Hãy nhờ quản trị viên đặt lại.</p>
+          )}
+        </div>
+      </IonContent>
+    </IonPage>
   )
 }
