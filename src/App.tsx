@@ -24,6 +24,7 @@ import { supabaseConfigured } from './lib/supabase'
 import { AgendaPage } from './pages/AgendaPage'
 import { ChildPage } from './pages/ChildPage'
 import { FamilyPage } from './pages/FamilyPage'
+import { LegalPage } from './pages/LegalPage'
 import { LoginPage } from './pages/LoginPage'
 import { MonthPage } from './pages/MonthPage'
 import { OnboardingPage } from './pages/OnboardingPage'
@@ -100,6 +101,8 @@ function Gate() {
             <Route path="/buoi/:id" element={<SessionPage />} />
             <Route path="/con/moi" element={<ChildPage />} />
             <Route path="/con/:id" element={<ChildPage />} />
+            <Route path="/dieu-khoan" element={<LegalPage doc="terms" />} />
+            <Route path="/bao-mat" element={<LegalPage doc="privacy" />} />
             <Route path="*" element={<Navigate to="/tabs/lich" replace />} />
           </IonRouterOutlet>
         </IonReactRouter>

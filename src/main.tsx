@@ -6,6 +6,8 @@ import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persist
 import { setupIonicReact } from '@ionic/react'
 import App from './App'
 import { captureInviteCodeFromUrl } from './lib/invite'
+import { isNative } from './lib/native'
+import { syncReminders } from './lib/reminders'
 import { supabase } from './lib/supabase'
 import { AuthProvider } from './state/auth'
 import './index.css'
@@ -30,6 +32,8 @@ supabase.auth.onAuthStateChange((event) => {
   if (event === 'SIGNED_OUT') {
     queryClient.clear()
     persister.removeClient()
+    // no reminders for a schedule this phone can no longer see
+    if (isNative) void syncReminders([], [])
   }
 })
 

@@ -13,6 +13,9 @@ import {
 } from '@ionic/react'
 import { supabase } from '../lib/supabase'
 import { errorMessage } from '../lib/errors'
+import { LEGAL_TITLE, type LegalDoc } from '../lib/legal'
+import { LegalModal } from './LegalPage'
+import { PoweredBy } from '../components/Page'
 
 export function LoginPage() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
@@ -20,6 +23,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [legal, setLegal] = useState<LegalDoc | null>(null)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -105,8 +109,27 @@ export function LoginPage() {
           {mode === 'signin' && (
             <p className="mt-6 text-center text-[13px] text-muted">Quên mật khẩu? Hãy nhờ quản trị viên đặt lại.</p>
           )}
+          <p className="mt-6 px-6 text-center text-xs leading-relaxed text-muted">
+            Khi {mode === 'signin' ? 'đăng nhập' : 'tạo tài khoản'}, bạn đồng ý với{' '}
+            <button type="button" onClick={() => setLegal('terms')} className="font-medium text-(--ion-color-primary)">
+              {LEGAL_TITLE.terms}
+            </button>{' '}
+            và{' '}
+            <button
+              type="button"
+              onClick={() => setLegal('privacy')}
+              className="font-medium text-(--ion-color-primary)"
+            >
+              {LEGAL_TITLE.privacy}
+            </button>
+            .
+          </p>
+          <div className="mt-8">
+            <PoweredBy />
+          </div>
         </div>
       </IonContent>
+      <LegalModal doc={legal} onClose={() => setLegal(null)} />
     </IonPage>
   )
 }

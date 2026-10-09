@@ -177,6 +177,15 @@ export function RowsCard({ children, className = '' }: { children: ReactNode; cl
   return <div className={`card divide-y divide-(--app-border) overflow-hidden ${className}`}>{children}</div>
 }
 
+/** Credit line at the bottom of the Gia đình tab and the login screen. */
+export function PoweredBy() {
+  return (
+    <p className="text-muted text-center text-xs tracking-wide opacity-80">
+      Powered by <span className="font-bold text-(--ion-color-primary)">VFM</span>
+    </p>
+  )
+}
+
 /** Full-width "+ Thêm lịch" button pinned above the tab bar. Put inside IonContent. */
 export function AddScheduleButton({ onClick }: { onClick: () => void }) {
   return (

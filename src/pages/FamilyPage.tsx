@@ -8,23 +8,28 @@ import {
   IonPage,
   IonRippleEffect,
   useIonActionSheet,
+  useIonAlert,
+  useIonLoading,
   useIonRouter,
 } from '@ionic/react'
 import {
   add,
   chevronForward,
+  documentTextOutline,
   homeOutline,
+  logOutOutline,
   lockClosedOutline,
   personAddOutline,
   settingsOutline,
   shareOutline,
+  shieldCheckmarkOutline,
   trashOutline,
 } from 'ionicons/icons'
 import { useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNowStrict } from 'date-fns'
 import { Share } from '@capacitor/share'
 import { vi } from 'date-fns/locale'
-import { LargeHeader, PullToRefresh, RowsCard, SectionTitle } from '../components/Page'
+import { InfoRow, LargeHeader, PoweredBy, PullToRefresh, RowsCard, SectionTitle } from '../components/Page'
 import { ChildAvatar, tint } from '../components/ChildAvatar'
 import { classAndSchool } from '../components/SessionSheet'
 import { ErrorBox, Loading } from '../components/States'
@@ -32,6 +37,7 @@ import { useChildren, useInvites, useMembers } from '../data/queries'
 import { supabase } from '../lib/supabase'
 import { errorMessage } from '../lib/errors'
 import { inviteLink } from '../lib/invite'
+import { LEGAL_PATH, LEGAL_TITLE } from '../lib/legal'
 import { isNative } from '../lib/native'
 import { ROLE_LABEL, type Invite, type Member, type Role } from '../lib/types'
 import { useUserId } from '../state/auth'
@@ -51,6 +57,7 @@ export function FamilyPage() {
   const { householdName, isOwner, canEdit, role } = useHousehold()
   const [presentActionSheet] = useIonActionSheet()
   const [editingNames, setEditingNames] = useState(false)
+  const router = useIonRouter()
 
   const openSettings = () =>
     presentActionSheet({
@@ -97,7 +104,26 @@ export function FamilyPage() {
           <MembersSection />
           {isOwner && <InvitesSection />}
 
+          <section className="space-y-2.5">
+            <SectionTitle title="Thông tin" />
+            <RowsCard>
+              <InfoRow
+                icon={documentTextOutline}
+                label={LEGAL_TITLE.terms}
+                onClick={() => router.push(LEGAL_PATH.terms)}
+              />
+              <InfoRow
+                icon={shieldCheckmarkOutline}
+                label={LEGAL_TITLE.privacy}
+                onClick={() => router.push(LEGAL_PATH.privacy)}
+              />
+            </RowsCard>
+          </section>
+
+          <AccountSection />
+
           <p className="text-muted px-4 pt-2 text-center text-xs">Quên mật khẩu? Hãy nhờ quản trị viên đặt lại.</p>
+          <PoweredBy />
         </div>
       </IonContent>
 
@@ -152,6 +178,63 @@ function ChildrenSection({ canEdit }: { canEdit: boolean }) {
           })}
         </RowsCard>
       )}
+    </section>
+  )
+}
+
+/** Sign out, and the in-app account deletion the App Store requires (rules in the delete_account migration). */
+function AccountSection() {
+  const userId = useUserId()
+  const { householdName, isOwner } = useHousehold()
+  const { data: members = [] } = useMembers()
+  const toast = useToast()
+  const [presentAlert] = useIonAlert()
+  const [presentLoading, dismissLoading] = useIonLoading()
+
+  // mirrors delete_my_account(): the longest-standing editor, else the longest-standing member
+  const others = members.filter((m) => m.user_id !== userId)
+  const heir = others.find((m) => m.role === 'editor') ?? others[0]
+  const consequence = !heir
+    ? `Gia đình “${householdName}” cùng toàn bộ lịch học, ghi chú và thông tin các con sẽ bị xoá vĩnh viễn.`
+    : isOwner
+      ? `Quyền chủ nhà sẽ chuyển cho ${heir.display_name}. Lịch học của gia đình vẫn được giữ lại cho các thành viên khác.`
+      : `Bạn sẽ rời khỏi gia đình “${householdName}”. Lịch học của gia đình vẫn được giữ lại cho các thành viên khác.`
+
+  async function deleteAccount() {
+    await presentLoading({ message: 'Đang xoá tài khoản…' })
+    try {
+      const { error } = await supabase.rpc('delete_my_account')
+      if (error) throw error
+      await supabase.auth.signOut({ scope: 'local' })
+      toast('Đã xoá tài khoản')
+    } catch (err) {
+      toast(errorMessage(err), 'error')
+    } finally {
+      await dismissLoading()
+    }
+  }
+
+  const confirmDelete = () =>
+    presentAlert({
+      header: 'Xoá tài khoản?',
+      message: `Email và tên hiển thị của bạn sẽ bị xoá. ${consequence} Thao tác này không thể hoàn tác.`,
+      buttons: [
+        { text: 'Huỷ', role: 'cancel' },
+        { text: 'Xoá vĩnh viễn', role: 'destructive', handler: () => void deleteAccount() },
+      ],
+    })
+
+  return (
+    <section className="space-y-2.5">
+      <SectionTitle title="Tài khoản" />
+      <RowsCard>
+        <InfoRow icon={logOutOutline} label="Đăng xuất" onClick={() => void supabase.auth.signOut()} />
+        <InfoRow
+          icon={trashOutline}
+          label={<span className="text-(--ion-color-danger)">Xoá tài khoản</span>}
+          onClick={confirmDelete}
+        />
+      </RowsCard>
     </section>
   )
 }
