@@ -1,0 +1,146 @@
+@import 'tailwindcss';
+
+:root {
+  color-scheme: light dark;
+  /* 14px base: Tailwind sizes and spacing are rem, so the whole UI scales down together */
+  font-size: 87.5%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@utility pb-safe {
+  padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom));
+}
+
+@utility pt-safe {
+  padding-top: var(--safe-area-inset-top, env(safe-area-inset-top));
+}
+
+/* below 16px iOS would zoom on focus; index.html sets maximum-scale=1 to prevent that */
+@utility input {
+  @apply w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base outline-none
+    focus:border-sky-500 focus:ring-2 focus:ring-sky-200
+    disabled:opacity-60
+    dark:border-slate-700 dark:bg-slate-900 dark:focus:ring-sky-900;
+}
+@utility label {
+  @apply mb-1 block text-sm font-medium text-slate-600 dark:text-slate-300;
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-medium transition
+    active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply btn bg-sky-500 text-white hover:bg-sky-600;
+}
+@utility btn-secondary {
+  @apply btn bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700;
+}
+@utility btn-danger {
+  @apply btn bg-rose-500 text-white hover:bg-rose-600;
+}
+@utility card {
+  @apply rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800;
+}
+
+/* Sheet (components/Sheet.tsx): slides up on phones, scales in as a dialog on wider screens.
+   Enter animations only fill backwards so the drag-to-dismiss transform can take over afterwards. */
+@theme {
+  --animate-sheet-in: sheet-in 340ms cubic-bezier(0.32, 0.72, 0, 1) backwards;
+  --animate-sheet-out: sheet-out 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  --animate-dialog-in: dialog-in 200ms ease-out backwards;
+  --animate-dialog-out: dialog-out 150ms ease-in forwards;
+  --animate-fade-in: fade-in 250ms ease-out backwards;
+  --animate-fade-out: fade-out 220ms ease-in forwards;
+
+  @keyframes sheet-in {
+    from {
+      transform: translateY(100%);
+    }
+  }
+  @keyframes sheet-out {
+    to {
+      transform: translateY(100%);
+    }
+  }
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+  }
+  @keyframes dialog-out {
+    to {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+}
+
+/* Page transitions (state/pageTransition.ts): the next page slides over the current one like a native
+   navigation stack; the page underneath shifts a little and dims. Tab switches just crossfade. */
+html[data-nav='forward']::view-transition-old(root),
+html[data-nav='forward']::view-transition-new(root),
+html[data-nav='back']::view-transition-old(root),
+html[data-nav='back']::view-transition-new(root) {
+  animation-duration: 400ms;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  animation-fill-mode: both;
+  mix-blend-mode: normal;
+}
+html[data-nav='forward']::view-transition-old(root) {
+  animation-name: page-under-out;
+}
+html[data-nav='forward']::view-transition-new(root) {
+  animation-name: page-over-in;
+  box-shadow: 0 0 24px rgb(0 0 0 / 0.15);
+}
+html[data-nav='back']::view-transition-old(root) {
+  z-index: 1;
+  animation-name: page-over-out;
+  box-shadow: 0 0 24px rgb(0 0 0 / 0.15);
+}
+html[data-nav='back']::view-transition-new(root) {
+  animation-name: page-under-in;
+}
+html[data-nav='tab']::view-transition-old(root),
+html[data-nav='tab']::view-transition-new(root) {
+  animation-duration: 150ms;
+}
+
+@keyframes page-over-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes page-over-out {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes page-under-out {
+  to {
+    transform: translateX(-30%);
+    filter: brightness(0.9);
+  }
+}
+@keyframes page-under-in {
+  from {
+    transform: translateX(-30%);
+    filter: brightness(0.9);
+  }
+}
