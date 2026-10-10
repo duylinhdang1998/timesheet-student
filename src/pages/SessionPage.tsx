@@ -225,7 +225,7 @@ function SessionDetail({ session, series }: { session: Session; series: Series |
           <InfoRow
             icon={repeatOutline}
             label="Lịch lặp"
-            value={`${formatWeekdays(series.weekdays)} · Đến ${formatDate(series.end_date).slice(0, 5)}`}
+            value={`${formatWeekdays(series.weekdays)} · ${series.end_date ? `Đến ${formatDate(series.end_date)}` : 'Không kết thúc'}`}
           />
         </RowsCard>
       )}

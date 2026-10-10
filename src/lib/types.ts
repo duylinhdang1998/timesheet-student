@@ -69,7 +69,8 @@ export interface Series extends SessionFields {
   household_id: string
   weekdays: number[]
   start_date: string
-  end_date: string
+  /** null: repeats with no end */
+  end_date: string | null
 }
 
 export interface DayNote {

@@ -32,7 +32,9 @@ import {
   hhmm,
   ISO_WEEKDAYS,
   isoWeekday,
+  maxPickDate,
   nowTimeVN,
+  todayVN,
   weekdayLabel,
 } from '../lib/dates'
 import { errorMessage } from '../lib/errors'
@@ -53,6 +55,8 @@ interface FormValues {
   end_time: string
   repeat: boolean
   weekdays: number[]
+  /** "never": repeats with no end; "on": until `end_date` */
+  ends: 'never' | 'on'
   end_date: string
   location: string
   teacher: string
@@ -71,6 +75,9 @@ function sameWeekdays(a: number[], b: number[]) {
   return [...a].sort().join() === [...b].sort().join()
 }
 
+/** What the database stores as the series' end: null when it never ends. */
+const endDateOf = (v: FormValues) => (v.ends === 'never' ? null : v.end_date)
+
 /** Step 1: who, what, when */
 function validateBasics(v: FormValues): string | null {
   if (!v.child_id) return 'Hãy chọn bé'
@@ -86,8 +93,11 @@ function validate(v: FormValues): string | null {
   if (basics) return basics
   if (v.repeat) {
     if (v.weekdays.length === 0) return 'Hãy chọn ít nhất một thứ trong tuần'
-    if (!v.end_date || v.end_date < v.date) return 'Ngày kết thúc lặp phải từ ngày bắt đầu trở đi'
-    if (v.end_date > addMonthsISO(v.date, 13)) return 'Lịch lặp tối đa khoảng 1 năm'
+    if (v.ends === 'on') {
+      if (!v.end_date || v.end_date < v.date) return 'Ngày kết thúc lặp phải từ ngày bắt đầu trở đi'
+      if (v.end_date > maxPickDate())
+        return 'Ngày kết thúc lặp tối đa 5 năm tới. Muốn lâu hơn, hãy chọn "Không kết thúc".'
+    }
   }
   return null
 }
@@ -171,6 +181,7 @@ export function NewSessionSheet({ date, onClose }: { date: string; onClose: () =
     end_time,
     repeat: false,
     weekdays: [isoWeekday(date)],
+    ends: 'never',
     end_date: addMonthsISO(date, 4),
     location: '',
     teacher: '',
@@ -190,7 +201,7 @@ export function NewSessionSheet({ date, onClose }: { date: string; onClose: () =
         p_end_time: v.end_time,
         p_weekdays: v.weekdays,
         p_start_date: v.date,
-        p_end_date: v.end_date,
+        p_end_date: endDateOf(v),
         p_location: blank(v.location),
         p_teacher: blank(v.teacher),
         p_contact_phone: blank(v.contact_phone),
@@ -253,7 +264,8 @@ export function EditSessionSheet({
     end_time: hhmm(session.end_time),
     repeat: Boolean(series),
     weekdays: series?.weekdays ?? [isoWeekday(session.date)],
-    end_date: series?.end_date ?? session.date,
+    ends: series && !series.end_date ? 'never' : 'on',
+    end_date: series ? (series.end_date ?? addMonthsISO(session.date, 4)) : session.date,
     location: session.location ?? '',
     teacher: session.teacher ?? '',
     contact_phone: session.contact_phone ?? '',
@@ -303,7 +315,7 @@ export function EditSessionSheet({
       p_start_time: v.start_time,
       p_end_time: v.end_time,
       p_weekdays: v.weekdays,
-      p_end_date: v.end_date,
+      p_end_date: endDateOf(v),
       p_location: blank(v.location),
       p_teacher: blank(v.teacher),
       p_contact_phone: blank(v.contact_phone),
@@ -319,7 +331,7 @@ export function EditSessionSheet({
   async function save(v: FormValues) {
     let scope: Scope = 'this'
     if (series) {
-      const recurrenceChanged = !sameWeekdays(v.weekdays, series.weekdays) || v.end_date !== series.end_date
+      const recurrenceChanged = !sameWeekdays(v.weekdays, series.weekdays) || endDateOf(v) !== series.end_date
       const picked = await pickScope('Áp dụng thay đổi cho', false, {
         this: recurrenceChanged ? 'Đổi thứ trong tuần hoặc ngày kết thúc chỉ áp dụng cho các buổi sau' : undefined,
         following: v.date !== session.date ? 'Đổi ngày chỉ áp dụng được cho riêng buổi này' : undefined,
@@ -445,6 +457,7 @@ function SessionSheet({
   const escortQuery = v.escort.trim().toLowerCase()
   const escortChips = escorts.filter((e) => e !== v.escort && e.toLowerCase().includes(escortQuery)).slice(0, 6)
   const showRecurrence = mode === 'series' || (mode === 'new' && v.repeat)
+  const today = todayVN()
 
   return (
     <IonModal
@@ -529,7 +542,13 @@ function SessionSheet({
                   />
                 </FieldRow>
                 <FieldRow label={showRecurrence ? 'Ngày bắt đầu' : 'Ngày học'}>
-                  <DateTimePicker kind="date" value={v.date} onChange={changeDate} />
+                  {/* from today on; an existing past session keeps its own date selectable */}
+                  <DateTimePicker
+                    kind="date"
+                    value={v.date}
+                    min={initial.date < today ? initial.date : today}
+                    onChange={changeDate}
+                  />
                 </FieldRow>
                 <div className="grid grid-cols-2 divide-x divide-(--app-border)">
                   <div className="flex flex-col items-start gap-1 px-4 py-2.5">
@@ -665,14 +684,31 @@ function SessionSheet({
                           )
                         })}
                       </div>
-                      <FieldRow label="Kết thúc lặp">
-                        <DateTimePicker
-                          kind="date"
-                          value={v.end_date}
-                          min={v.date}
-                          onChange={(d) => set('end_date', d)}
-                        />
-                      </FieldRow>
+                      <div className="space-y-2 px-4 py-3">
+                        <div className="text-[15px]">Kết thúc lặp</div>
+                        <IonSegment
+                          className="full"
+                          value={v.ends}
+                          onIonChange={(e) => set('ends', e.detail.value === 'on' ? 'on' : 'never')}
+                        >
+                          <IonSegmentButton value="never">
+                            <IonLabel>Không kết thúc</IonLabel>
+                          </IonSegmentButton>
+                          <IonSegmentButton value="on">
+                            <IonLabel>Đến ngày</IonLabel>
+                          </IonSegmentButton>
+                        </IonSegment>
+                      </div>
+                      {v.ends === 'on' && (
+                        <FieldRow label="Ngày kết thúc">
+                          <DateTimePicker
+                            kind="date"
+                            value={v.end_date}
+                            min={v.date}
+                            onChange={(d) => set('end_date', d)}
+                          />
+                        </FieldRow>
+                      )}
                     </div>
                   )}
                 </section>
@@ -765,7 +801,10 @@ export function classAndSchool(child: Pick<Child, 'class_name' | 'school'>) {
 function summary(v: FormValues, recurring: boolean): string {
   const time = `${v.start_time} – ${v.end_time}`
   if (!recurring) return `Một buổi vào ${formatDayTitle(v.date)}, ${time}.`
-  if (v.weekdays.length === 0 || !v.end_date || v.end_date < v.date) return `Lặp hằng tuần, ${time}.`
+  if (v.weekdays.length === 0) return `Lặp hằng tuần, ${time}.`
+  if (v.ends === 'never')
+    return `Lặp ${formatWeekdays(v.weekdays)}, ${time}, từ ${formatDate(v.date)}, không có ngày kết thúc (tạo sẵn 5 năm, hết thì tự thêm 5 năm).`
+  if (!v.end_date || v.end_date < v.date) return `Lặp hằng tuần, ${time}.`
   const count = datesBetween(v.date, v.end_date).filter((d) => v.weekdays.includes(isoWeekday(d))).length
   return `Lặp ${formatWeekdays(v.weekdays)}, ${time}, từ ${formatDate(v.date)} đến ${formatDate(v.end_date)} (khoảng ${count} buổi).`
 }

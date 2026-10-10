@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import { IonDatetime, IonDatetimeButton, IonItem, IonLabel, IonModal } from '@ionic/react'
+import { maxPickDate, todayVN } from '../lib/dates'
 
 type Kind = 'date' | 'time'
 
@@ -24,7 +25,7 @@ const FORMAT = {
 } as const
 
 /**
- * Button showing dd/MM/yyyy or HH:mm; tapping opens Ionic's calendar or time wheel in a small card.
+ * Button showing dd/MM/yyyy or HH:mm; dates default to today … 5 years ahead. tapping opens Ionic's calendar or time wheel in a small card.
  * The value only changes when "Xong" is tapped.
  */
 export function DateTimePicker({ kind, value, onChange, min, max, disabled }: PickerProps) {
@@ -40,8 +41,8 @@ export function DateTimePicker({ kind, value, onChange, min, max, disabled }: Pi
           hourCycle="h23"
           firstDayOfWeek={1}
           value={value ? toIon(kind, value) : undefined}
-          min={min}
-          max={max}
+          min={min ?? (kind === 'date' ? todayVN() : undefined)}
+          max={max ?? (kind === 'date' ? maxPickDate() : undefined)}
           formatOptions={FORMAT[kind]}
           showDefaultButtons
           doneText="Xong"

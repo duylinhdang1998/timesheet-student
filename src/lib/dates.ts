@@ -3,6 +3,14 @@ import { addDays, addMonths, format, getDay, parse } from 'date-fns'
 // Dates travel as ISO strings (yyyy-MM-dd), times as HH:mm. Everything is Vietnam time.
 const ISO = 'yyyy-MM-dd'
 
+/** How far ahead the schedule reaches: pickers stop here and open-ended series are created this far. */
+export const HORIZON_MONTHS = 60
+
+/** Latest date a picker offers (IonDatetime's own default would stop this December). */
+export function maxPickDate(): string {
+  return addMonthsISO(todayVN(), HORIZON_MONTHS)
+}
+
 export function todayVN(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date())
 }

@@ -26,6 +26,7 @@ import {
   formatDayTitle,
   formatWeekRange,
   isoWeekday,
+  maxPickDate,
   todayVN,
   weekdayLabel,
   weekStart,
@@ -123,6 +124,7 @@ export function AgendaPage() {
           presentation="date"
           locale="vi-VN"
           firstDayOfWeek={1}
+          max={maxPickDate()}
           value={view === 'today' ? selected : monday}
           showDefaultButtons
           doneText="Xong"
