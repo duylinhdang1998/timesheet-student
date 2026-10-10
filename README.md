@@ -52,9 +52,10 @@ Mỗi buổi học có "Nhắc trước" (15 phút … 1 ngày, mặc định 15
 ## Kiến trúc nhanh
 
 - Vite + React + TypeScript + Tailwind v4, `vite-plugin-pwa` (service worker tự cập nhật).
+- Giao diện dùng **Ionic React** (giao diện iOS trên iPhone, Material trên Android): chuyển trang trượt kiểu native, chọn ngày/giờ bằng `IonDatetime`, select/xác nhận bằng action sheet và alert. Router là `@ionic/react-router` + react-router v6; các tab ở `/tabs/lich`, `/tabs/thang`, `/tabs/gia-dinh`. Tailwind chỉ dùng utilities (không preflight) để không đè style của Ionic.
 - TanStack Query, cache được lưu vào `localStorage` để xem lịch khi offline (sửa thì cần mạng).
 - Supabase: Auth email/mật khẩu, Postgres + RLS. Mọi quy tắc nghiệp vụ quan trọng nằm trong migration:
   - mỗi tài khoản thuộc đúng 1 gia đình (`unique (user_id)`), vai trò `owner` / `editor` / `viewer`;
   - mã mời 6 ký tự, dùng 1 lần, hết hạn 7 ngày (`create_invite`, `join_household`);
-  - lịch lặp hằng tuần được sinh sẵn thành từng buổi (`create_series`), sửa/xoá "buổi này và các buổi sau" (`update_series_from`, `delete_series_from`);
+  - lịch lặp hằng tuần được sinh sẵn thành từng buổi (`create_series`): lặp đến ngày (tối đa 5 năm) sinh đủ một lần; lặp không kết thúc sinh 5 năm một lần, đến ngày cuối thì cron `extend-open-series` (chạy mỗi đêm) sinh thêm 5 năm; sửa/xoá "buổi này và các buổi sau" (`update_series_from`, `delete_series_from`);
   - một bé không thể có 2 buổi "có học" trùng giờ (exclusion constraint `sessions_no_overlap`); lịch lặp tự bỏ qua ngày trùng.

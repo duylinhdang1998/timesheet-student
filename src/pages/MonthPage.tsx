@@ -1,29 +1,31 @@
 import { useState } from 'react'
-import { useAppNavigate } from '../state/pageTransition'
+import { IonButton, IonContent, IonIcon, IonPage } from '@ionic/react'
+import { chevronBack, chevronForward } from 'ionicons/icons'
 import { addMonths, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from 'date-fns'
-import { ChildFilterBar, TopBar } from '../components/TopBar'
-import { DayBlock } from '../components/DayBlock'
-import { DayNotesSheet } from '../components/DayNotesSheet'
-import { Fab } from '../components/BottomNav'
-import { Icon } from '../components/Icon'
+import { AddScheduleButton, ChildFilterBar, LargeHeader, PullToRefresh, SectionTitle } from '../components/Page'
+import { DayContent, Dots, NoSessions, dayColors } from '../components/DayBlock'
+import { DayNotesModal } from '../components/DayNotesModal'
+import { NewSessionSheet } from '../components/SessionSheet'
 import { EmptyChildren, ErrorBox, Loading } from '../components/States'
 import { useDays } from '../data/days'
-import { datesBetween, formatDayLong, parseISODate, toISODate, todayVN } from '../lib/dates'
+import { datesBetween, formatDayTitle, parseISODate, toISODate, todayVN } from '../lib/dates'
+import { useChildFilter } from '../state/childFilter'
 import { useHousehold } from '../state/household'
 
 const WEEK_HEADER = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
 
 export function MonthPage() {
-  const navigate = useAppNavigate()
   const { canEdit } = useHousehold()
+  const [filter] = useChildFilter()
   const today = todayVN()
   const [month, setMonth] = useState(() => startOfMonth(parseISODate(today)))
   const [selected, setSelected] = useState(today)
   const [notesOpen, setNotesOpen] = useState(false)
+  const [adding, setAdding] = useState(false)
 
   const gridFrom = toISODate(startOfWeek(month, { weekStartsOn: 1 }))
   const gridTo = toISODate(endOfWeek(endOfMonth(month), { weekStartsOn: 1 }))
-  const { byDate, childById, children, allNotes, showChildName, loading, error } = useDays(gridFrom, gridTo)
+  const { byDate, childById, children, childrenLoading, allNotes, loading, error } = useDays(gridFrom, gridTo)
   const monthKey = format(month, 'yyyy-MM')
 
   const changeMonth = (delta: number) => {
@@ -33,98 +35,115 @@ export function MonthPage() {
   }
 
   const selectedDay = byDate.get(selected)
+  const count = selectedDay?.sessions.length ?? 0
+  const legend = children.filter((c) => !filter || c.id === filter)
 
   return (
-    <>
-      <TopBar title="Lịch tháng">
+    <IonPage>
+      <LargeHeader title="Lịch tháng">
         <ChildFilterBar />
-      </TopBar>
+      </LargeHeader>
 
-      <main className="mx-auto max-w-md px-4 py-4">
-        {error && <ErrorBox error={error} />}
-        <div className="mb-3 flex items-center justify-between">
-          <button className="rounded-full p-2" onClick={() => changeMonth(-1)} aria-label="Tháng trước">
-            <Icon name="prev" />
-          </button>
-          <h2 className="font-semibold">Tháng {format(month, 'M/yyyy')}</h2>
-          <button className="rounded-full p-2" onClick={() => changeMonth(1)} aria-label="Tháng sau">
-            <Icon name="next" />
-          </button>
-        </div>
-
-        <div className="card grid grid-cols-7 gap-y-1 p-2 text-center">
-          {WEEK_HEADER.map((d) => (
-            <div key={d} className="py-1 text-xs font-medium text-slate-400">
-              {d}
-            </div>
-          ))}
-          {datesBetween(gridFrom, gridTo).map((date) => {
-            const day = byDate.get(date)
-            const inMonth = date.startsWith(monthKey)
-            const scheduled = day?.sessions.filter((s) => s.status === 'scheduled') ?? []
-            const colors = [...new Set(scheduled.map((s) => childById.get(s.child_id)?.color ?? '#94a3b8'))]
-            const isSelected = date === selected
-            return (
-              <button
-                key={date}
-                onClick={() => setSelected(date)}
-                className={`relative flex h-12 flex-col items-center justify-start rounded-xl pt-1 ${
-                  isSelected ? 'bg-sky-500 text-white' : date === today ? 'text-sky-600 dark:text-sky-400' : ''
-                } ${inMonth ? '' : 'opacity-35'}`}
-              >
-                <span className={`text-sm ${date === today ? 'font-bold' : ''}`}>{Number(date.slice(8))}</span>
-                <span className="mt-0.5 flex gap-0.5">
-                  {colors.slice(0, 4).map((c) => (
-                    <span key={c} className="size-1.5 rounded-full ring-1 ring-white/70" style={{ backgroundColor: c }} />
-                  ))}
-                </span>
-                {(day?.notes.length ?? 0) > 0 && (
-                  <span className="absolute top-1 right-1.5 size-1.5 rounded-full bg-amber-400" aria-label="Có ghi chú" />
-                )}
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="mt-5">
-          <h3 className="mb-2 font-semibold">{formatDayLong(selected)}</h3>
-          {loading ? (
+      <IonContent>
+        <PullToRefresh />
+        <div className="mx-auto max-w-md space-y-4 px-4 pt-1 pb-28">
+          {error && <ErrorBox error={error} />}
+          {childrenLoading ? (
             <Loading />
           ) : children.length === 0 ? (
             <EmptyChildren />
           ) : (
-            selectedDay && (
-              <>
-                <DayBlock
-                  day={selectedDay}
-                  childById={childById}
-                  showChildName={showChildName}
-                  isToday={selected === today}
-                  canEdit={canEdit}
-                  hideHeader
-                  onEditNotes={() => setNotesOpen(true)}
-                  onAddSession={() => navigate(`/buoi/moi?ngay=${selected}`)}
-                />
-                {canEdit && (
-                  <button className="btn-secondary mt-3 w-full" onClick={() => setNotesOpen(true)}>
-                    <Icon name="note" /> Ghi chú ngày này
-                  </button>
+            <>
+              <div className="card px-2 pt-1.5 pb-3">
+                <div className="flex items-center">
+                  <IonButton fill="clear" color="medium" onClick={() => changeMonth(-1)} aria-label="Tháng trước">
+                    <IonIcon slot="icon-only" icon={chevronBack} />
+                  </IonButton>
+                  <h2 className="flex-1 text-center text-[16px] font-semibold">
+                    Tháng {month.getMonth() + 1}, {month.getFullYear()}
+                  </h2>
+                  <IonButton fill="clear" color="medium" onClick={() => changeMonth(1)} aria-label="Tháng sau">
+                    <IonIcon slot="icon-only" icon={chevronForward} />
+                  </IonButton>
+                </div>
+
+                <div className="grid grid-cols-7 gap-y-1 text-center">
+                  {WEEK_HEADER.map((d) => (
+                    <div key={d} className="text-muted py-1 text-xs font-medium">
+                      {d}
+                    </div>
+                  ))}
+                  {datesBetween(gridFrom, gridTo).map((date) => {
+                    const inMonth = date.startsWith(monthKey)
+                    const isSelected = date === selected
+                    return (
+                      <button
+                        type="button"
+                        key={date}
+                        onClick={() => setSelected(date)}
+                        aria-pressed={isSelected}
+                        className={`flex flex-col items-center gap-0.5 py-0.5 ${inMonth ? '' : 'opacity-35'}`}
+                      >
+                        <span
+                          className={`flex size-9 items-center justify-center rounded-full text-[15px] tabular-nums ${
+                            isSelected
+                              ? 'bg-(--ion-color-primary) font-bold text-white'
+                              : date === today
+                                ? 'font-bold text-(--ion-color-primary)'
+                                : ''
+                          }`}
+                        >
+                          {Number(date.slice(8))}
+                        </span>
+                        <Dots colors={dayColors(byDate.get(date), childById)} />
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {legend.length > 1 && (
+                  <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 border-t border-(--app-border) px-2 pt-3">
+                    {legend.map((c) => (
+                      <span key={c.id} className="text-muted flex items-center gap-1.5 text-[13px]">
+                        <span className="size-2 rounded-full" style={{ backgroundColor: c.color }} />
+                        {c.name}
+                      </span>
+                    ))}
+                  </div>
                 )}
-              </>
-            )
+              </div>
+
+              <SectionTitle title={formatDayTitle(selected)} note={`${count} buổi học`} />
+              {loading || !selectedDay ? (
+                <Loading />
+              ) : (
+                <>
+                  <DayContent
+                    day={selectedDay}
+                    childById={childById}
+                    isToday={selected === today}
+                    canEdit={canEdit}
+                    onEditNotes={() => setNotesOpen(true)}
+                    onAddSession={() => setAdding(true)}
+                  />
+                  {count === 0 && <NoSessions />}
+                </>
+              )}
+            </>
           )}
         </div>
-      </main>
+        {canEdit && children.length > 0 && <AddScheduleButton onClick={() => setAdding(true)} />}
+      </IonContent>
 
-      {canEdit && children.length > 0 && <Fab onClick={() => navigate(`/buoi/moi?ngay=${selected}`)} />}
+      {adding && <NewSessionSheet date={selected} onClose={() => setAdding(false)} />}
       {notesOpen && (
-        <DayNotesSheet
+        <DayNotesModal
           date={selected}
           notes={allNotes.filter((n) => n.date === selected)}
           kids={children}
           onClose={() => setNotesOpen(false)}
         />
       )}
-    </>
+    </IonPage>
   )
 }

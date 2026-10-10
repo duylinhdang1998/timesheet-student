@@ -3,13 +3,26 @@ import { addDays, addMonths, format, getDay, parse } from 'date-fns'
 // Dates travel as ISO strings (yyyy-MM-dd), times as HH:mm. Everything is Vietnam time.
 const ISO = 'yyyy-MM-dd'
 
+/** How far ahead the schedule reaches: pickers stop here and open-ended series are created this far. */
+export const HORIZON_MONTHS = 60
+
+/** Latest date a picker offers (IonDatetime's own default would stop this December). */
+export function maxPickDate(): string {
+  return addMonthsISO(todayVN(), HORIZON_MONTHS)
+}
+
 export function todayVN(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date())
 }
 
 /** Current Vietnam time, "HH:mm" (comparable with session times as strings). */
 export function nowTimeVN(): string {
-  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date())
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date())
 }
 
 export function parseISODate(iso: string): Date {
@@ -67,4 +80,44 @@ export function weekdayLabel(isoDay: number): string {
 /** "17:30:00" → "17:30" */
 export function hhmm(time: string): string {
   return time.slice(0, 5)
+}
+
+const DOW_NAME = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']
+
+/** "Thứ Sáu" */
+export function weekdayName(iso: string): string {
+  return DOW_NAME[getDay(parseISODate(iso))]
+}
+
+/** "Thứ Sáu, 09/10" */
+export function formatDayTitle(iso: string): string {
+  return `${weekdayName(iso)}, ${format(parseISODate(iso), 'dd/MM')}`
+}
+
+/** "Thứ Sáu, 9 tháng 10" */
+export function formatDayFull(iso: string): string {
+  const d = parseISODate(iso)
+  return `${weekdayName(iso)}, ${d.getDate()} tháng ${d.getMonth() + 1}`
+}
+
+/** Monday of the week containing `iso` */
+export function weekStart(iso: string): string {
+  return addDaysISO(iso, 1 - isoWeekday(iso))
+}
+
+/** "05 – 11 tháng 10", or "29/09 – 05/10" across two months */
+export function formatWeekRange(monday: string): string {
+  const a = parseISODate(monday)
+  const b = parseISODate(addDaysISO(monday, 6))
+  if (a.getMonth() === b.getMonth()) return `${format(a, 'dd')} – ${format(b, 'dd')} tháng ${b.getMonth() + 1}`
+  return `${format(a, 'dd/MM')} – ${format(b, 'dd/MM')}`
+}
+
+/** [1, 3, 5] → "Thứ 2, 4, 6"; Sunday reads "CN" */
+export function formatWeekdays(days: number[]): string {
+  const sorted = [...days].sort((a, b) => a - b)
+  const nums = sorted.filter((d) => d < 7).map((d) => String(d + 1))
+  const parts = nums.length ? [`Thứ ${nums.join(', ')}`] : []
+  if (sorted.includes(7)) parts.push('CN')
+  return parts.join(', ')
 }

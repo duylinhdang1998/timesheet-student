@@ -17,14 +17,18 @@
     "@capacitor/core": "^8.5.2",
     "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/share": "^8.0.3",
+    "@ionic/react": "^9.0.7",
+    "@ionic/react-router": "^9.0.7",
     "@supabase/supabase-js": "^2.117.2",
     "@tanstack/query-sync-storage-persister": "^5.104.1",
     "@tanstack/react-query": "^5.104.1",
     "@tanstack/react-query-persist-client": "^5.104.1",
     "date-fns": "^4.4.0",
+    "ionicons": "^8.1.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router": "^8.4.0"
+    "react-router": "^6.30.6",
+    "react-router-dom": "^6.30.6"
   },
   "devDependencies": {
     "@capacitor/android": "^8.5.2",

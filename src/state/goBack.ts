@@ -1,18 +1,13 @@
-import { useAppNavigate } from './pageTransition'
-
-/** Whether there is an earlier entry of this app in history (react-router keeps the index in history.state). */
-export function canGoBack() {
-  return ((window.history.state as { idx?: number } | null)?.idx ?? 0) > 0
-}
+import { useIonRouter } from '@ionic/react'
 
 /**
- * Back within the app. When the page was opened directly (reload, shared link, PWA restore),
- * history.back() would leave the app or land on a stale bfcache copy, so go to `fallback` instead.
+ * Back within the app. When the page was opened directly (reload, shared link, tapped reminder),
+ * there is nothing to go back to, so slide back to `fallback` instead.
  */
-export function useGoBack(fallback = '/') {
-  const navigate = useAppNavigate()
+export function useGoBack(fallback = '/tabs/lich') {
+  const router = useIonRouter()
   return () => {
-    if (canGoBack()) navigate(-1)
-    else navigate(fallback, { replace: true, direction: 'back' })
+    if (router.canGoBack()) router.goBack()
+    else router.push(fallback, 'back', 'replace')
   }
 }
